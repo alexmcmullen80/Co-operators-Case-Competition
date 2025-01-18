@@ -1,82 +1,89 @@
-import pandas as pd
+from sklearn.model_selection import KFold
+from sklearn.preprocessing import OneHotEncoder, MinMaxScaler, StandardScaler
 import numpy as np
+import pandas as pd
 import statsmodels.api as sm
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
-
-
-
+from sklearn.decomposition import TruncatedSVD
 
 # Load data
 data = pd.read_excel('data/modelling_data.xlsx')
 
-# Step 1: Filter rows with exposure >= 0.0001
-data = data[data['exposure'] > 1e-3]
+data = data[data['exposure'] > 0.01]
 
 # Step 2: Reset the index after filtering
 data.reset_index(drop=True, inplace=True)
 
-# Step 3: One-hot encode categorical columns
-encoder = OneHotEncoder()
-encoded_array = encoder.fit_transform(
-    data[['annual_mileage', 'winter_tires', 'gender', 'location', 
-          'annual_income', 'ownership', 'occupation', 'credit_band', 
-          'marital_status', 'vehicle_value', 'car_model']]).toarray()
-#encoded_df = pd.DataFrame(encoded_array, columns=encoder.get_feature_names_out())
+# Define features and target columns
+categorical_columns = ['annual_mileage', 'winter_tires', 'gender', 'location', 
+                       'annual_income', 'ownership', 'occupation', 'credit_band', 
+                       'marital_status', 'vehicle_value', 'car_model']
+target_column = 'claimcount'
+exposure_column = 'exposure'
 
-# Step 4: Drop original categorical columns
-data.drop(
-    ['annual_mileage', 'winter_tires', 'gender', 'location', 'annual_income', 
-     'ownership', 'occupation', 'credit_band', 'marital_status', 
-     'vehicle_value', 'car_model'], 
-    axis=1, 
-    inplace=True
-)
+# Step 3: Prepare for cross-validation
+kf = KFold(n_splits=5, shuffle=True, random_state=42)  # 5-fold cross-validation
+rmse_list = []
 
-# Step 5: Separate and process 'exposure' and 'claimcount'
-new_data = data[['exposure', 'claimcount']].copy()
-new_data['log_exposure'] = np.log(new_data['exposure'])
+# Step 4: Cross-validation loop
+for train_index, val_index in kf.split(data):
+    # Split data into training and validation sets
+    train_data, val_data = data.iloc[train_index], data.iloc[val_index]
+    
+    # Separate exposure and claimcount
+    train_exposure = train_data[exposure_column]
 
-# Step 6: Remove exposure and claimcount from the main data for scaling
-data.drop(['exposure', 'claimcount'], axis=1, inplace=True)
+    val_exposure = val_data[exposure_column]
+    train_claimcount = train_data[target_column]
+    val_claimcount = val_data[target_column]
+    
+    # Process categorical columns (fit encoder only on training data)
+    encoder = OneHotEncoder()
+    train_encoded = encoder.fit_transform(train_data[categorical_columns]).toarray()
+    val_encoded = encoder.transform(val_data[categorical_columns]).toarray()
+    
+    # Drop processed categorical columns from train and validation data
+    train_data = train_data.drop(columns=categorical_columns + [exposure_column, target_column])
+    val_data = val_data.drop(columns=categorical_columns + [exposure_column, target_column])
+    
+    # Normalize continuous features (fit scaler only on training data)
+    scaler = MinMaxScaler()
+    train_scaled = scaler.fit_transform(train_data)
+    val_scaled = scaler.transform(val_data)
+    
+    # Combine scaled and encoded features
+    X_train = np.concatenate([train_scaled, train_encoded], axis=1)
+    X_val = np.concatenate([val_scaled, val_encoded], axis=1)
+    
+    # Add constant term
+    X_train = sm.add_constant(X_train)
+    X_val = sm.add_constant(X_val)
 
-# Step 7: Normalize continuous features
-scaler = MinMaxScaler()
-data_array = scaler.fit_transform(data)
+    svd = TruncatedSVD(n_components=15)  # Adjust the number of components based on your needs
+    X_train = svd.fit_transform(X_train)
+    X_val = svd.transform(X_val)
 
-# Step 8: Combine normalized data with encoded features
-data_array = np.concatenate((data_array, encoded_array), axis=1)
+    
+    # Prepare target and offset
+    y_train = train_claimcount.to_numpy()
+    y_val = val_claimcount.to_numpy()
 
-# Step 9: Extract the target variable and the offset
-X = data_array
-y = new_data['claimcount'].to_numpy()
-offset = new_data['log_exposure'].to_numpy()
+    offset_train = np.log(train_exposure)
+    offset_val = np.log(val_exposure)
 
-# Step 10: Add a constant term for the model
-X = sm.add_constant(X)
+    
+    # Fit model on training data
+    model = sm.GLM(y_train, X_train, family=sm.families.Poisson(), offset=offset_train)
+    result = model.fit(cov_type='HC3')
+    
+    # Predict on validation data
+    predicted_values = result.predict(X_val)
+    
+    # Calculate RMSE for the fold
+    mse = mean_squared_error(y_val, predicted_values)
+    rmse = np.sqrt(mse)
+    rmse_list.append(rmse)
 
-# Step 11: Fit a Poisson regression model
-model = sm.GLM(y, X, family=sm.families.Poisson(), offset=offset)
-result = model.fit()
-
-# # Step 12: Print model summary
-# print(result.summary())
-
-# Assuming 'result' is the fitted GLM model
-predicted_values = result.predict(X)  # X is the feature matrix used for fitting the model
-
-
-# Assuming 'y' is the actual target values and 'predicted_values' are the predicted values from the model
-
-# Calculate Mean Squared Error (MSE)
-mse = mean_squared_error(y, predicted_values)
-
-# Calculate RMSE by taking the square root of MSE
-rmse = np.sqrt(mse)
-
-# Print the RMSE
-print(f'RMSE: {rmse}')
-
-
-
+# Step 5: Calculate and print average RMSE across folds
+average_rmse = np.mean(rmse_list)
+print(f'Cross-validated RMSE: {average_rmse}')
