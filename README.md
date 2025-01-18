@@ -4,10 +4,23 @@
 
 1. **Download the entire folder** to your local machine.
 
-2. **Activate the virtual environment**:
+2. **Create and activate a virtual environment**:
+
    - Open your terminal (Command Prompt or PowerShell on Windows, or Terminal on macOS/Linux).
    - Navigate to the folder where the project is located.
-   - Run the following command to activate the virtual environment:
+   - Create a new virtual environment by running the following command:
+
+     ### On Windows:
+     ```bash
+     python -m venv myenv
+     ```
+
+     ### On macOS/Linux:
+     ```bash
+     python3 -m venv myenv
+     ```
+
+   - Activate the virtual environment:
 
      ### On Windows:
      ```bash
@@ -19,11 +32,9 @@
      source myenv/bin/activate
      ```
 
-3. **Run the code**:
-   - Once the virtual environment is activated, run the following command in your terminal to start the application:
+3. **Install the required dependencies**:
    
-     ```bash
-     python app.py
-     ```
+   Once the virtual environment is activated, install the necessary packages by running:
 
-The code is contained within the `app.py` file, and once the environment is activated, you can execute it directly.
+   ```bash
+   pip install -r requirements.txt
