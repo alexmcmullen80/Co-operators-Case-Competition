@@ -1,4 +1,4 @@
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler, StandardScaler
 import numpy as np
 import pandas as pd
@@ -21,15 +21,19 @@ categorical_columns = ['annual_mileage', 'winter_tires', 'gender', 'location',
 target_column = 'claimcount'
 exposure_column = 'exposure'
 
+# train test split
+initial_X_train, X_test, initial_y_train, y_test = train_test_split(data.drop(target_column,axis=1), data[target_column], test_size=0.2, random_state=42)
+initial_train_data = pd.concat([initial_X_train,initial_y_train],axis=1)
+
 # cross-validation with 5 folds
 kf = KFold(n_splits=5, shuffle=True, random_state=42)  
 rmse_list = []
 
 # cross-validation loop
-for train_index, val_index in kf.split(data):
+for train_index, val_index in kf.split(initial_train_data):
 
     # split data into training and validation sets
-    train_data, val_data = data.iloc[train_index], data.iloc[val_index]
+    train_data, val_data = initial_train_data.iloc[train_index], initial_train_data.iloc[val_index]
     
     # separate exposure and claimcount for train set and validation set
     train_exposure = train_data[exposure_column]
@@ -87,4 +91,28 @@ for train_index, val_index in kf.split(data):
 
 # calculate and print average RMSE across folds
 average_rmse = np.mean(rmse_list)
-print(f'Cross-validated RMSE: {average_rmse}')
+print(f'Cross-validated RMSE on Training Data: {average_rmse}')
+
+# separate exposure
+test_exposure = X_test[exposure_column]
+# one hot encode categorical columns
+test_encoded = encoder.transform(X_test[categorical_columns]).toarray()
+# drop processed categorical columns from test data
+X_test = X_test.drop(columns=categorical_columns + [exposure_column])
+# scale continuous features with min max
+test_scaled = scaler.transform(X_test)
+# combine scaled and encoded features
+X_test = np.concatenate([test_scaled, test_encoded], axis=1)
+# add constant term (this slightly improves performance)
+X_test = sm.add_constant(X_test)
+X_test = svd.transform(X_test)
+# prepare target and offset
+y_test = y_test.to_numpy()
+# take log of offset (this is what research says to do)
+offset_test = np.log(test_exposure)
+# predict on held out test set
+predicted_values = result.predict(X_test)
+# calculate RMSE for the fold
+mse = mean_squared_error(y_test, predicted_values)
+rmse = np.sqrt(mse)
+print(f'RMSE on Test Data: {rmse}')
