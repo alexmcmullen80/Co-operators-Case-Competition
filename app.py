@@ -6,6 +6,9 @@ import statsmodels.api as sm
 from sklearn.metrics import mean_squared_error
 from sklearn.decomposition import TruncatedSVD
 
+def predict_with_averaged_model(X, average_coef):
+    return np.exp(np.dot(X, average_coef))
+
 # load data
 data = pd.read_excel('data/modelling_data.xlsx')
 
@@ -29,6 +32,7 @@ initial_train_data = pd.concat([initial_X_train,initial_y_train],axis=1)
 kf = KFold(n_splits=5, shuffle=True, random_state=42)  
 rmse_list = []
 
+coef_list = []
 # cross-validation loop
 for train_index, val_index in kf.split(initial_train_data):
 
@@ -89,9 +93,18 @@ for train_index, val_index in kf.split(initial_train_data):
     rmse = np.sqrt(mse)
     rmse_list.append(rmse)
 
+    # store coefficients
+    coef_list.append(result.params)
+
 # calculate and print average RMSE across folds
 average_rmse = np.mean(rmse_list)
 print(f'Cross-validated RMSE on Training Data: {average_rmse}')
+
+#compute average coefficient for final model
+coef_array = np.stack(coef_list, axis=0)
+average_coef = np.mean(coef_array, axis=0)
+
+
 
 # separate exposure
 test_exposure = X_test[exposure_column]
@@ -111,7 +124,8 @@ y_test = y_test.to_numpy()
 # take log of offset (this is what research says to do)
 offset_test = np.log(test_exposure)
 # predict on held out test set
-predicted_values = result.predict(X_test)
+#predicted_values = result.predict(X_test)
+predicted_values = predict_with_averaged_model(X_test, average_coef)
 # calculate RMSE for the fold
 mse = mean_squared_error(y_test, predicted_values)
 rmse = np.sqrt(mse)
