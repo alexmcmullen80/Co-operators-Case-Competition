@@ -12,7 +12,7 @@ def predict_with_averaged_model(X, average_coef):
 # load data
 data = pd.read_excel('data/modelling_data.xlsx')
 
-data = data[data['exposure'] > 0.01]
+#data = data[data['exposure'] > 0.01]
 
 # reset the index after filtering
 data.reset_index(drop=True, inplace=True)
@@ -23,6 +23,16 @@ categorical_columns = ['annual_mileage', 'winter_tires', 'gender', 'location',
                        'marital_status', 'vehicle_value', 'car_model']
 target_column = 'claimcount'
 exposure_column = 'exposure'
+
+# group ages
+# data.loc[data['age_of_insured']<=19, 'age_group'] = 'a'
+# data.loc[data['age_of_insured'].between(20,29), 'age_group'] = 'b'
+# data.loc[data['age_of_insured'].between(30,39), 'age_group'] = 'bb'
+# data.loc[data['age_of_insured'].between(40,49), 'age_group'] = 'c'
+# data.loc[data['age_of_insured'].between(50,59), 'age_group'] = 'd'
+# data.loc[data['age_of_insured'].between(60,69), 'age_group'] = 'e'
+# data.loc[data['age_of_insured']>69, 'age_group'] = 'f'
+#data = data.drop(columns=['age_of_insured'])
 
 # train test split
 initial_X_train, X_test, initial_y_train, y_test = train_test_split(data.drop(target_column,axis=1), data[target_column], test_size=0.2, random_state=42)
