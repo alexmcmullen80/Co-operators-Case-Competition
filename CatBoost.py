@@ -13,9 +13,19 @@ rmse_scorer = make_scorer(rmse_score, greater_is_better=False)
 # Load data
 data = pd.read_excel('data/modelling_data.xlsx')
 
-# Filter data with exposure > 0.01
-data = data[data['exposure'] > 0.01]
-data.reset_index(drop=True, inplace=True)
+# Filter data with exposure > 0.01 (i believe gives worse rmse)
+# data = data[data['exposure'] > 0.01]
+# data.reset_index(drop=True, inplace=True)
+
+# group ages (makes a very slight difference) (you also must add 'age_group' to categorical_columns)
+# data.loc[data['age_of_insured']<=19, 'age_group'] = 'a'
+# data.loc[data['age_of_insured'].between(20,29), 'age_group'] = 'b'
+# data.loc[data['age_of_insured'].between(30,39), 'age_group'] = 'bb'
+# data.loc[data['age_of_insured'].between(40,49), 'age_group'] = 'c'
+# data.loc[data['age_of_insured'].between(50,59), 'age_group'] = 'd'
+# data.loc[data['age_of_insured'].between(60,69), 'age_group'] = 'e'
+# data.loc[data['age_of_insured']>69, 'age_group'] = 'f'
+# data = data.drop(columns=['age_of_insured'])
 
 # Define features and target columns
 categorical_columns = ['annual_mileage', 'winter_tires', 'gender', 'location', 
