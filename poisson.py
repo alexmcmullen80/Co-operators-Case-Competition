@@ -1,0 +1,87 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
+from sklearn.metrics import mean_squared_error
+import statsmodels.api as sm
+
+# Load data
+data = pd.read_excel('data/modelling_data.xlsx')
+
+
+# Define categorical and other columns
+categorical_columns = ['annual_mileage', 'winter_tires', 'gender', 'location', 'deductible',
+                       'annual_income', 'ownership', 'occupation', 'credit_band', 
+                       'marital_status', 'vehicle_value', 'car_model']
+target_column = 'claimcount'
+exposure_column = 'exposure'
+
+# Ensure the base level of each categorical variable is the one with the highest exposure
+for col in categorical_columns:
+    exposure_per_category = data.groupby(col)[exposure_column].sum()
+    highest_exposure_category = exposure_per_category.idxmax()
+    data[col] = pd.Categorical(
+        data[col], 
+        categories=[highest_exposure_category] + [cat for cat in data[col].unique() if cat != highest_exposure_category],
+        ordered=True
+    )
+
+# Train-test split
+initial_X_train, X_test, initial_y_train, y_test = train_test_split(
+    data.drop(target_column, axis=1),
+    data[target_column],
+    test_size=0.2,
+    random_state=42
+)
+df = pd.DataFrame(X_test, columns=data.columns)
+df['claimcount'] = y_test
+
+
+
+# Prepare training data
+X_train = initial_X_train.copy()
+y_train = initial_y_train.values
+X_test = X_test.copy()
+
+# Add log-transformed exposure as a feature
+X_train['log_exposure'] = np.log(X_train[exposure_column])
+X_test['log_exposure'] = np.log(X_test[exposure_column])
+
+# Separate numerical and categorical columns
+numerical_columns = [col for col in X_train.columns if col not in categorical_columns + [exposure_column]]
+
+# Scale numerical columns
+scaler = MinMaxScaler()
+X_train_scaled_numerical = scaler.fit_transform(X_train[numerical_columns])
+X_test_scaled_numerical = scaler.transform(X_test[numerical_columns])
+
+# One-hot encode categorical columns
+encoder = OneHotEncoder(drop='first', sparse_output=False)  # Drop the base level for one-hot encoding
+X_train_encoded_categorical = encoder.fit_transform(X_train[categorical_columns])
+X_test_encoded_categorical = encoder.transform(X_test[categorical_columns])
+
+# Combine scaled numerical and encoded categorical features
+X_train_prepared = np.hstack((X_train_scaled_numerical, X_train_encoded_categorical))
+X_test_prepared = np.hstack((X_test_scaled_numerical, X_test_encoded_categorical))
+
+X_train_prepared = sm.add_constant(X_train_prepared)
+X_test_prepared = sm.add_constant(X_test_prepared)
+
+
+
+model = sm.GLM(y_train, X_train_prepared, family=sm.families.Poisson(), offset=X_train['log_exposure'].values)
+result = model.fit()
+    
+
+
+# Predict on the test set
+offset_test = X_test['log_exposure'].values  # Ensure correct offset shape
+y_pred = result.predict(X_test_prepared, offset=offset_test)
+df['prediction'] = y_pred
+df.to_excel('data/predictions.xlsx')
+
+
+# Calculate RMSE
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+print(f'RMSE on Test Data: {rmse}')
+
