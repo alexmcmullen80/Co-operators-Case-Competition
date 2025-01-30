@@ -80,6 +80,8 @@ result = model.fit()
 # Use model to predict on the test set
 offset_test = X_test['log_exposure'].values
 y_pred = result.predict(X_test_prepared, offset=offset_test)
+
+# Complete output
 df['prediction'] = y_pred
 df.to_excel('data/predictions.xlsx')
 
