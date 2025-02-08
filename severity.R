@@ -11,7 +11,7 @@ summary(model)
 
 dummy.coef(model)
 
-prediction <- predict(model, data=my_data)
+prediction <- predict(model, data=my_data, type = "response")
 
 prediction
 
