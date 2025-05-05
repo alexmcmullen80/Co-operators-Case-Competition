@@ -38,8 +38,8 @@ for col in categorical_columns:
 # Train on all of modelling_data and test on all of evalation_data
 initial_y_train = data[target_column]
 initial_X_train = data.drop(target_column, axis=1)
-y_test = eval_data[target_column]
-X_test = eval_data.drop(target_column, axis=1)
+y_test = data[target_column]
+X_test = data.drop(target_column, axis=1)
 
 # Prepare output
 df = pd.DataFrame(X_test, columns=['ROW_ID','exposure'])
@@ -83,8 +83,8 @@ y_pred = result.predict(X_test_prepared, offset=offset_test)
 
 # Complete output
 df['prediction'] = y_pred
-df.to_excel('data/predictions.xlsx')
+df.to_excel('data/predictions_on_train_new.xlsx')
 
 # Calculate RMSE
-# rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-# print(f'RMSE on Test Data: {rmse}')
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+print(f'RMSE on Test Data: {rmse}')
