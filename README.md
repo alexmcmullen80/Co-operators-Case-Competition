@@ -38,10 +38,3 @@
 
    ```bash
    pip install -r requirements.txt
-
-3. **Run the main python script**:
-   
-   Once the virtual environment is activated, install the necessary packages by running:
-
-   ```bash
-   python app.py
