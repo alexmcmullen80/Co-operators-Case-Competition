@@ -6,14 +6,20 @@ from sklearn.metrics import mean_squared_error
 import statsmodels.api as sm
 
 # Load data
-data = pd.read_excel('data/modelling_data.xlsx')
+#data = pd.read_excel('data/modelling_data.xlsx')
+#data = pd.read_excel('data/final_round_dataset.xlsx')
 # eval_data = pd.read_excel('data/evaluation_data.xlsx')
-
+data = pd.read_excel('data/joined_data.xlsx')
+#data['claimcount'] = data['claimcount_yr_1'] + data['claimcount_yr_2'] + data['claimcount_yr_3'] + data['claimcount_yr_4'] + data['claimcount_yr_5']
+#data.drop(['claimcount_yr_1','claimcount_yr_2','claimcount_yr_3','claimcount_yr_4','claimcount_yr_5'], axis=1, inplace=True)
+data.drop(['marital_status', 'occupation', 'location', 'gender', 'loyalty', 'car_model', 'vehicle_value'], axis=1, inplace=True)
 
 # Define categorical and other columns
-categorical_columns = ['annual_mileage', 'winter_tires', 'gender', 'location', 'deductible',
-                       'annual_income', 'ownership', 'occupation', 'credit_band', 
-                       'marital_status', 'vehicle_value', 'car_model']
+# categorical_columns = ['annual_mileage', 'winter_tires', 'gender', 'location', 'deductible',
+
+#                        'annual_income', 'ownership', 'occupation', 'credit_band', 
+#                        'marital_status', 'vehicle_value', 'car_model']
+categorical_columns = ['annual_mileage', 'winter_tires', 'deductible', 'annual_income', 'ownership', 'credit_band']
 target_column = 'claimcount'
 exposure_column = 'exposure'
 
@@ -35,14 +41,15 @@ initial_X_train, X_test, initial_y_train, y_test = train_test_split(
     random_state=42
 )
 
-# Train on all of modelling_data and test on all of evalation_data
+# # Train on all of modelling_data and test on all of evalation_data
 # initial_y_train = data[target_column]
 # initial_X_train = data.drop(target_column, axis=1)
-# y_test = eval_data[target_column]
-# X_test = eval_data.drop(target_column, axis=1)
+# y_test = data[target_column]
+# X_test = data.drop(target_column, axis=1)
 
 # Prepare output
 # df = pd.DataFrame(X_test, columns=['ROW_ID','exposure'])
+df = pd.DataFrame(X_test)
 
 # Prepare training data
 X_train = initial_X_train.copy()
@@ -50,6 +57,7 @@ y_train = initial_y_train.values
 X_test = X_test.copy()
 
 # Add log-transformed exposure as a feature
+
 X_train['log_exposure'] = np.log(X_train[exposure_column])
 X_test['log_exposure'] = np.log(X_test[exposure_column])
 
@@ -58,9 +66,8 @@ X_test['log_exposure'] = np.log(X_test[exposure_column])
 numerical_columns = []
 for col in X_train.columns:
     if col not in categorical_columns and col != exposure_column:
+    #if col not in categorical_columns:
         numerical_columns.append(col)
-
-
 
 
 # Scale numerical columns
@@ -83,15 +90,18 @@ X_test_prepared = sm.add_constant(X_test_prepared)
 
 # Build model using poisson family
 model = sm.GLM(y_train, X_train_prepared, family=sm.families.Poisson(), offset=X_train['log_exposure'].values)
+#model = sm.GLM(y_train, X_train_prepared, family=sm.families.Poisson())
 result = model.fit()
 
 # Use model to predict on the test set
 offset_test = X_test['log_exposure'].values
 y_pred = result.predict(X_test_prepared, offset=offset_test)
+# y_pred = result.predict(X_test_prepared)
 
 # Complete output
 # df['prediction'] = y_pred
-# df.to_excel('data/predictions.xlsx')
+# df['claim_count'] = y_test
+# df.to_excel('data/predictions_on_train.xlsx')
 
 # Calculate RMSE
 rmse = np.sqrt(mean_squared_error(y_test, y_pred))

@@ -1,9 +1,13 @@
+# install.packages("readxl", repos='https://cloud.r-project.org')
+# install.packages("openxlsx", repos='https://cloud.r-project.org')
+
 library(readxl)
 library(openxlsx)
 
-my_data <- read_excel("C:/Users/Jacks/Desktop/Co-operators-Case-Competition/data/joined_data.xlsx")
+#my_data <- read_excel("data/joined_data.xlsx")
+my_data <- read_excel("data/evaluation_data.xlsx")
 
-model <- readRDS("C:/Users/Jacks/Desktop/Co-operators-Case-Competition/glm_severity_model", refhook = NULL)
+model <- readRDS("glm_severity_model", refhook = NULL)
 
 new_data <- my_data[, c("credit_band", "ownership", "loyalty", "claims_history")]
 
@@ -15,6 +19,6 @@ prediction <- predict(model, data=my_data, type = "response")
 
 prediction
 
-df = data.frame(matrix(prediction, ncol = 1, byrow = T ))
+df <- data.frame(Prediction = matrix(prediction, ncol = 1, byrow = TRUE))
 
-write.xlsx(df, "C:/Users/Jacks/Desktop/Co-operators-Case-Competition/data/severity.xlsx")
+write.xlsx(df, "data/evaluation_severity.xlsx")
